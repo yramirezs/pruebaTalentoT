@@ -1,0 +1,210 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package co.edu.itc.proyecto.negocio;
+
+import co.edu.itc.proyecto.vo.PersonaVO;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ *
+ * @author yeram
+ */
+public class AgendaDAO {
+    
+    /**
+     * conexion con la base de datos
+     */
+    public AgendaDAO() {
+        inicializar();
+    }
+
+    public Connection conexion;
+    /**
+     * nombre del usuario para conectarse a la base de datos.
+     */
+    private String usuario;
+    /**
+     * clave de conexi?n a la base de datos.
+     */
+    private String clave;
+    /**
+     * URL al cual se debe conectar para acceder a la base de datos.
+     */
+    private String cadenaConexion;
+    
+    public void inicializar(){
+        try {
+            cadenaConexion = "jdbc:mysql://localhost:3306/agenda";
+            
+            usuario = "root";
+            
+            clave= "psswrd";
+            
+            final String driver = "com.mysql.cj.jdbc.Driver";
+            
+            Class.forName(driver);
+        } catch (ClassNotFoundException ex) {
+            ex.printStackTrace();
+            //Logger.getLogger(AgendaDAO.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public void establecerConexion() {
+     //   System.out.println("url " + cadenaConexion + " usr " + usuario + " pwd " + clave);
+        try {
+            conexion = DriverManager.getConnection(cadenaConexion, usuario, clave);
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            //Logger.getLogger(AgendaDAO.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public void cerrarConexion(Connection conn){
+        try {
+            conn.close();
+            conn = null;
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            //Logger.getLogger(AgendaDAO.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    
+    }
+    /**
+     * metodo que permite devolver una coleccion de todas los registros de
+     * personas que estén en la bd
+     * @return List<PersonaVO>
+     */
+    public List<PersonaVO> traerPersonas(){
+    List<PersonaVO> misP = new ArrayList<PersonaVO>();
+    
+    establecerConexion();
+    
+        try {
+            ResultSet resultados = conexion.createStatement().executeQuery("select * from agenda.persona");
+            
+            while(resultados.next()){
+                int idP = resultados.getInt(1);
+                String nombreP = resultados.getString(2);
+                String apellidoP = resultados.getString(3);
+                String emailP = resultados.getString(4);
+                long numDoc = resultados.getLong(5);
+                PersonaVO p = new PersonaVO(idP, nombreP, apellidoP, emailP, numDoc);
+                misP.add(p);
+            }
+            resultados.close();
+            
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            //Logger.getLogger(AgendaDAO.class.getName()).log(Level.SEVERE, null, ex);
+        }finally{
+            if(conexion != null){
+                cerrarConexion(conexion);
+            }
+        }
+    return misP;
+    }
+    
+    /**
+     * Método que permite obtener una tupla que coincida con el parámetro de
+     * numDocumento
+     * @param numDocumento
+     * @return PersonaVO
+     */
+    public PersonaVO buscarPersona(long numDocumento){
+    PersonaVO miP = null;
+    establecerConexion();
+        try {
+            ResultSet resultado = conexion.createStatement().executeQuery("select "
+                    + "* from agenda.persona where num_documento = "+numDocumento);
+            
+            while(resultado.next()){
+                int idP = resultado.getInt(1);
+                String nombreP = resultado.getString(2);
+                String apellidoP = resultado.getString(3);
+                String emailP = resultado.getString(4);
+                long numDoc = resultado.getLong(5);
+                miP = new PersonaVO(idP, nombreP, apellidoP, emailP, numDoc);
+            }
+        } catch (SQLException ex) {
+            //Logger.getLogger(AgendaDAO.class.getName()).log(Level.SEVERE, null, ex);
+            ex.printStackTrace();
+        }finally{
+            if(conexion != null){
+                cerrarConexion(conexion);
+            }
+        }
+    
+    return miP;
+    }
+    
+    public int guardarPersona(PersonaVO p){
+    establecerConexion();
+    int retorno = 0;
+        try {
+            PreparedStatement insercion = conexion.prepareStatement(
+                    "insert into PERSONA values(?,?,?,?,?)");
+            insercion.setInt(1, p.getIdPersona());
+            insercion.setString(2, p.getNombre());
+            insercion.setString(3, p.getApellido());
+            insercion.setString(4, p.getEmail());
+            insercion.setLong(5, p.getNumDocumento());
+            
+            retorno = insercion.executeUpdate();
+        } catch (SQLException ex) {
+            //Logger.getLogger(AgendaDAO.class.getName()).log(Level.SEVERE, null, ex);
+            ex.printStackTrace();
+        }finally{
+        if(conexion != null){
+            cerrarConexion(conexion);
+        }
+        }
+        return retorno;
+    }
+    
+    public void actualizarPersona(PersonaVO p){
+    establecerConexion();
+    PreparedStatement stm = null;
+    
+        try {
+            stm = conexion.prepareStatement("UPDATE PERSONA SET nombre=?, apellido=?, email=? where idpersona=?");
+            stm.setString(1, p.getNombre());
+            stm.setString(2, p.getApellido());
+            stm.setString(3, p.getEmail());
+            stm.setLong(4, p.getIdPersona());
+            stm.executeUpdate();
+            
+        } catch (SQLException ex) {
+            Logger.getLogger(AgendaDAO.class.getName()).log(Level.SEVERE, null, ex);
+        }finally{
+            if(conexion != null){
+                cerrarConexion(conexion);
+            }
+        }
+    }
+    
+    public void eliminarPersona(PersonaVO p){
+        try {
+            establecerConexion();
+            Statement st = null;
+            String cadenaBorrado = "delete from persona where idpersona = "+p.getIdPersona();
+            
+            st = conexion.createStatement();
+            
+            st.executeUpdate(cadenaBorrado);
+        } catch (SQLException ex) {
+            Logger.getLogger(AgendaDAO.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+}
